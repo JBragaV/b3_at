@@ -1,9 +1,9 @@
+import os
 from datetime import datetime, timedelta
-import math
 
 import pandas as pd
-from playwright.sync_api import sync_playwright
 import yfinance as yf
+from playwright.sync_api import sync_playwright
 
 
 def arredondar_marred_0_5(numero):
@@ -12,30 +12,58 @@ def arredondar_marred_0_5(numero):
 
 
 def buscador_acao(ticker: str):
-    ticker_formatado = ticker.upper() if ticker.upper().endswith('.SA') else f'{ticker.upper()}.SA'
+    if '=' in ticker:
+        ticker_formatado = ticker
+    else:
+        ticker_formatado = ticker.upper() if ticker.upper().endswith('.SA') else f'{ticker.upper()}.SA'
+    print(ticker_formatado)
     dat = yf.Ticker(ticker_formatado)
     return dat
 
 
-def tratador_dados_acao(dat):
-    df_ticker = dat.history().sort_index(ascending=False).head(21)[['Open', 'High', 'Low', 'Close']]
+def tratador_dados_acao(dat, total_dias: int = 21):
+    print('Ola!!', total_dias)
+    if total_dias == 21:
+        df_ticker = dat.history().sort_index(ascending=False)
+    else:
+        hoje = datetime.now() - timedelta(days=total_dias)
+        hoje_str = hoje.strftime('%Y-%m-%d')
+        df_ticker = dat.history(start=hoje_str).sort_index(ascending=False).head(46)
+    df_ticker = df_ticker.head(total_dias)[['Open', 'High', 'Low', 'Close']]
     abertura_hoje = df_ticker.iloc[0]['Open']
     df_ticker.loc[:, 'Max-Min'] = df_ticker['High'] - df_ticker['Low']
     df_ticker_formatted = df_ticker.map(lambda x: round(float(x), 2))
-    return df_ticker_formatted.iloc[1:], round(float(abertura_hoje), 2)
+    return df_ticker_formatted.iloc[1:][['High', 'Low', 'Max-Min']], round(float(abertura_hoje), 2)
+
+
+def calculadora_desvio_padrao(df_ticker):
+    desvio_padrao_max_min = df_ticker['Max-Min'].std(ddof=0)  # Desvio padrão Populacional
+    desvio_padrao_arredondado = arredondar_marred_0_5(desvio_padrao_max_min)
+    return desvio_padrao_arredondado
 
 
 def calculo_acao(ticker: str) -> tuple:
     try:
         dat = buscador_acao(ticker.upper())
         df_ticker, abertura_hoje = tratador_dados_acao(dat)
+        desvio_padrao_arredondado = calculadora_desvio_padrao(df_ticker)
+        if desvio_padrao_arredondado == 0:
+            contador = 1
+            total_dias = 65
+            while desvio_padrao_arredondado <= 0:
+                df_ticker, abertura_hoje = tratador_dados_acao(dat, total_dias)
+                desvio_padrao_arredondado = calculadora_desvio_padrao(df_ticker)
+                if contador == 3:
+                    break
+                total_dias += 10
+                contador += 1
     except Exception:
         try:
             df_ticker, abertura_hoje = tratador_df_raspagem(ticker.upper())
+            desvio_padrao_max_min = df_ticker['Max-Min'].std()
+            desvio_padrao_arredondado = arredondar_marred_0_5(desvio_padrao_max_min)
         except Exception:
             return 'Erro', 500, f'Não foi possivel encontar os valores do ticker {ticker}'
-    desvio_padrao_max_min = df_ticker['Max-Min'].std()
-    desvio_padrao_arredondado = arredondar_marred_0_5(desvio_padrao_max_min)
     return df_ticker, abertura_hoje, desvio_padrao_arredondado
 
 
@@ -46,11 +74,10 @@ def br_to_float(txt: str) -> float:
 def tratador_df_raspagem(ticker):
     dados = raspador_indices(ticker)
     df = pd.DataFrame(dados).dropna(subset=["Data"])
-    df = df.set_index("Data").sort_index(ascending=False).head(21)
-    abertura_hoje = df.iloc[0]['Abertura']
+    df = df.set_index("Data").sort_index(ascending=False).head(20)
     df = df.map(lambda x: round(float(x), 2))
     df.loc[:, 'Max-Min'] = df['Máxima'] - df['Mínima']
-    return df.iloc[1:], abertura_hoje
+    return df, 0.0
 
 
 def raspador_indices(ticker='WDOFUT') -> list:
@@ -103,3 +130,12 @@ def calcular_pontos_de_trade(std, abertura):
                 )
             )
     return lst_pontos_trade
+
+
+def formatador_abertura_usuario(user_open: str) -> float:
+    valor_formatado = user_open.replace('.', '').replace(',', '.')
+    return float(valor_formatado)
+
+
+if __name__ == '__main__':
+    pass
