@@ -1,4 +1,3 @@
-import os
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -63,8 +62,9 @@ def calculo_acao(ticker: str) -> tuple:
             desvio_padrao_max_min = df_ticker['Max-Min'].std()
             desvio_padrao_arredondado = arredondar_marred_0_5(desvio_padrao_max_min)
         except Exception:
-            return 'Erro', 500, f'Não foi possivel encontar os valores do ticker {ticker}'
-    return df_ticker, abertura_hoje, desvio_padrao_arredondado
+            return 'Erro', 500, f'Não foi possivel encontar os valores do ticker {ticker}', 0
+    df_lst_pontos_trade = calcular_pontos_de_trade(desvio_padrao_arredondado, abertura_hoje)
+    return df_ticker, abertura_hoje, desvio_padrao_arredondado, df_lst_pontos_trade
 
 
 def br_to_float(txt: str) -> float:
@@ -116,20 +116,21 @@ def raspador_indices(ticker='WDOFUT') -> list:
                         "Máxima": br_to_float(high_txt),
                         "Mínima": br_to_float(low_txt)
                     })
-                except Exception as e:
+                except Exception:
                     continue
     return data
 
 
 def calcular_pontos_de_trade(std, abertura):
-    lst_pontos_trade = []
+    lst_pontos_soma = []
+    lst_pontos_subtrai = []
     for i in range(1, 5):
-        lst_pontos_trade.append(
-                (
-                    round(abertura + (std * i), 2), round(abertura - (std * i), 2)
-                )
-            )
-    return lst_pontos_trade
+        lst_pontos_soma.append(round(abertura + (std * i), 2))
+        lst_pontos_subtrai.append(round(abertura - (std * i), 2))
+    colunas = [f'Devdio Padrão + {i}: {std * i}' for i in range(1, 5)]
+    dados = [lst_pontos_soma, lst_pontos_subtrai]
+    df_lst_pontos_trade = pd.DataFrame(dados, index=['+', '-'], columns=colunas)
+    return df_lst_pontos_trade
 
 
 def formatador_abertura_usuario(user_open: str) -> float:

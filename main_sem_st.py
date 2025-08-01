@@ -14,10 +14,5 @@ if __name__ == '__main__':
     if abertura != 500 and not isinstance(abertura, int):
         print(df)
         lista_trade = calcular_pontos_de_trade(desvio_padrao, float(abertura))
-        print(f'Ticker: {ticker}')
-        print(f'Abertura: {abertura}', f'Desvio Padrão: {desvio_padrao}')
-        for i, ponto in enumerate(lista_trade):
-            print(f'Ponto {i+1}: {abertura} + Desvio Padrão x {i+1}: {ponto[0]} '
-                  f'--- {abertura} - Desvio Padrão x {i+1}: {ponto[1]}')
     else:
         print(desvio_padrao)
