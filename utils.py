@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 
 import pandas as pd
 import yfinance as yf
 from playwright.sync_api import sync_playwright
+import holidays
 
 
 def arredondar_marred_0_5(numero):
@@ -21,7 +22,6 @@ def buscador_acao(ticker: str):
 
 
 def tratador_dados_acao(dat, total_dias: int = 21):
-    print('Ola!!', total_dias)
     if total_dias == 21:
         df_ticker = dat.history().sort_index(ascending=False)
     else:
@@ -32,7 +32,14 @@ def tratador_dados_acao(dat, total_dias: int = 21):
     abertura_hoje = df_ticker.iloc[0]['Open']
     df_ticker.loc[:, 'Max-Min'] = df_ticker['High'] - df_ticker['Low']
     df_ticker_formatted = df_ticker.map(lambda x: round(float(x), 2))
-    return df_ticker_formatted.iloc[1:][['High', 'Low', 'Max-Min']], round(float(abertura_hoje), 2)
+    df_ticker_formatted = formata_df_para_formato_br(df_ticker_formatted.iloc[1:][['High', 'Low', 'Max-Min']])
+    return df_ticker_formatted, round(float(abertura_hoje), 2)
+
+
+def formata_df_para_formato_br(df: pd.DataFrame) -> pd.DataFrame:
+    df.rename(columns={'High': 'Máxima', 'Low': 'Mínima'}, inplace=True)
+    df.index = df.index.strftime('%d/%m/%Y')
+    return df
 
 
 def calculadora_desvio_padrao(df_ticker):
@@ -136,6 +143,22 @@ def calcular_pontos_de_trade(std, abertura):
 def formatador_abertura_usuario(user_open: str) -> float:
     valor_formatado = user_open.replace('.', '').replace(',', '.')
     return float(valor_formatado)
+
+
+def verificador_dia_util_b3() -> bool:
+    feriados_sp = holidays.country_holidays('BR', years=2025, state='SP', prov='SP', language='pt_BR')
+    debug = False
+    if not debug:
+        agora = datetime.now()
+    else:
+        agora = datetime(2025, 8, 1, 12, 00)
+    dia_semana: bool = agora.weekday() < 5
+    print(dia_semana)
+    hoje_nao_eh_feriado = not (agora.date() in feriados_sp.keys())
+    print(hoje_nao_eh_feriado)
+    horario_funcionamento_b3 = time(10, 10) < agora.time() < time(16, 50)
+    print(horario_funcionamento_b3)
+    return horario_funcionamento_b3 and dia_semana and hoje_nao_eh_feriado
 
 
 if __name__ == '__main__':
