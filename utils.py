@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, time
 
+import streamlit as st
 import pandas as pd
 import yfinance as yf
 from playwright.sync_api import sync_playwright
@@ -49,28 +50,33 @@ def calculadora_desvio_padrao(df_ticker):
 
 
 def calculo_acao(ticker: str) -> tuple:
-    try:
-        dat = buscador_acao(ticker.upper())
-        df_ticker, abertura_hoje = tratador_dados_acao(dat)
-        desvio_padrao_arredondado = calculadora_desvio_padrao(df_ticker)
-        if desvio_padrao_arredondado == 0:
-            contador = 1
-            total_dias = 65
-            while desvio_padrao_arredondado <= 0:
-                df_ticker, abertura_hoje = tratador_dados_acao(dat, total_dias)
-                desvio_padrao_arredondado = calculadora_desvio_padrao(df_ticker)
-                if contador == 3:
-                    break
-                total_dias += 10
-                contador += 1
-    except Exception:
+    dia = str(datetime.now().day).zfill(2)
+    if not verificador_ticker_no_session_state(ticker):
         try:
-            df_ticker, abertura_hoje = tratador_df_raspagem(ticker.upper())
-            desvio_padrao_max_min = df_ticker['Max-Min'].std()
-            desvio_padrao_arredondado = arredondar_marred_0_5(desvio_padrao_max_min)
+            dat = buscador_acao(ticker.upper())
+            df_ticker, abertura_hoje = tratador_dados_acao(dat)
+            desvio_padrao_arredondado = calculadora_desvio_padrao(df_ticker)
+            if desvio_padrao_arredondado == 0:
+                contador = 1
+                total_dias = 65
+                while desvio_padrao_arredondado <= 0:
+                    df_ticker, abertura_hoje = tratador_dados_acao(dat, total_dias)
+                    desvio_padrao_arredondado = calculadora_desvio_padrao(df_ticker)
+                    if contador == 3:
+                        break
+                    total_dias += 10
+                    contador += 1
         except Exception:
-            return 'Erro', 500, f'Não foi possivel encontar os valores do ticker {ticker}', 0
-    df_lst_pontos_trade = calcular_pontos_de_trade(desvio_padrao_arredondado, abertura_hoje)
+            try:
+                df_ticker, abertura_hoje = tratador_df_raspagem(ticker.upper())
+                desvio_padrao_max_min = df_ticker['Max-Min'].std()
+                desvio_padrao_arredondado = arredondar_marred_0_5(desvio_padrao_max_min)
+            except Exception:
+                return 'Erro', 500, f'Não foi possivel encontar os valores do ticker {ticker}', 0
+        df_lst_pontos_trade = calcular_pontos_de_trade(desvio_padrao_arredondado, abertura_hoje)
+        st.session_state[dia][ticker] = [df_ticker, abertura_hoje, desvio_padrao_arredondado, df_lst_pontos_trade]
+    else:
+        df_ticker, abertura_hoje, desvio_padrao_arredondado, df_lst_pontos_trade = st.session_state[dia][ticker]
     return df_ticker, abertura_hoje, desvio_padrao_arredondado, df_lst_pontos_trade
 
 
@@ -146,7 +152,7 @@ def formatador_abertura_usuario(user_open: str) -> float:
 
 
 def verificador_dia_util_b3() -> bool:
-    feriados_sp = holidays.country_holidays('BR', years=2025, state='SP', prov='SP', language='pt_BR')
+    feriados_sp = holidays.country_holidays('BR', years=datetime.now().year, state='SP', prov='SP', language='pt_BR')
     debug = False
     if not debug:
         agora = datetime.now()
@@ -159,6 +165,21 @@ def verificador_dia_util_b3() -> bool:
     horario_funcionamento_b3 = time(10, 10) < agora.time() < time(16, 50)
     print(horario_funcionamento_b3)
     return horario_funcionamento_b3 and dia_semana and hoje_nao_eh_feriado
+
+
+def verificador_ticker_no_session_state(ticker: str) -> bool:
+    kdia = str(datetime.now().day).zfill(2)
+    inicializador_session_dia(kdia)
+    if ticker in st.session_state[kdia]:
+        return True
+    else:
+        return False
+
+
+def inicializador_session_dia(kdia: str) -> None:
+    if kdia not in st.session_state:
+        st.session_state.clear()
+        st.session_state[kdia] = {}
 
 
 if __name__ == '__main__':

@@ -2,4 +2,5 @@ import streamlit as st
 
 
 def help():
-    pass
+    st.title('Ainda Falta:')
+    st.markdown("* Calculcar com o indice e o dolar")
