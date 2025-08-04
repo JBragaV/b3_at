@@ -7,9 +7,9 @@ from playwright.sync_api import sync_playwright
 import holidays
 
 
-def arredondar_marred_0_5(numero):
-    """Arredonda um número para o múltiplo de 0.5 mais próximo."""
-    return round(numero * 2) / 2
+# def arredondar_marred_0_5(numero):
+#     """Arredonda um número para o múltiplo de 0.5 mais próximo."""
+#     return round(numero * 2) / 2
 
 
 def buscador_acao(ticker: str):
@@ -28,13 +28,13 @@ def tratador_dados_acao(dat, total_dias: int = 21):
     else:
         hoje = datetime.now() - timedelta(days=total_dias)
         hoje_str = hoje.strftime('%Y-%m-%d')
-        df_ticker = dat.history(start=hoje_str).sort_index(ascending=False).head(46)
+        df_ticker = dat.history(start=hoje_str).sort_index(ascending=False)
     df_ticker = df_ticker.head(total_dias)[['Open', 'High', 'Low', 'Close']]
     abertura_hoje = df_ticker.iloc[0]['Open']
     df_ticker.loc[:, 'Max-Min'] = df_ticker['High'] - df_ticker['Low']
-    df_ticker_formatted = df_ticker.map(lambda x: round(float(x), 2))
-    df_ticker_formatted = formata_df_para_formato_br(df_ticker_formatted.iloc[1:][['High', 'Low', 'Max-Min']])
-    return df_ticker_formatted, round(float(abertura_hoje), 2)
+    # df_ticker_formatted = df_ticker.map(lambda x: round(float(x), 2)) Retirado o formatador para duas casas decimais
+    df_ticker_formatted = formata_df_para_formato_br(df_ticker.iloc[1:][['High', 'Low', 'Max-Min']])
+    return df_ticker_formatted, abertura_hoje  # round(float(abertura_hoje), 2) Retirado a fornatação para duas casas decimais
 
 
 def formata_df_para_formato_br(df: pd.DataFrame) -> pd.DataFrame:
@@ -45,8 +45,8 @@ def formata_df_para_formato_br(df: pd.DataFrame) -> pd.DataFrame:
 
 def calculadora_desvio_padrao(df_ticker):
     desvio_padrao_max_min = df_ticker['Max-Min'].std(ddof=0)  # Desvio padrão Populacional
-    desvio_padrao_arredondado = arredondar_marred_0_5(desvio_padrao_max_min)
-    return desvio_padrao_arredondado
+    # desvio_padrao_arredondado = arredondar_marred_0_5(desvio_padrao_max_min)
+    return desvio_padrao_max_min
 
 
 def calculo_acao(ticker: str) -> tuple:
@@ -70,7 +70,7 @@ def calculo_acao(ticker: str) -> tuple:
             try:
                 df_ticker, abertura_hoje = tratador_df_raspagem(ticker.upper())
                 desvio_padrao_max_min = df_ticker['Max-Min'].std()
-                desvio_padrao_arredondado = arredondar_marred_0_5(desvio_padrao_max_min)
+                desvio_padrao_arredondado = desvio_padrao_max_min  # arredondar_marred_0_5(desvio_padrao_max_min)
             except Exception:
                 return 'Erro', 500, f'Não foi possivel encontar os valores do ticker {ticker}', 0
         df_lst_pontos_trade = calcular_pontos_de_trade(desvio_padrao_arredondado, abertura_hoje)
@@ -88,7 +88,7 @@ def tratador_df_raspagem(ticker):
     dados = raspador_indices(ticker)
     df = pd.DataFrame(dados).dropna(subset=["Data"])
     df = df.set_index("Data").sort_index(ascending=False).head(20)
-    df = df.map(lambda x: round(float(x), 2))
+    # df = df.map(lambda x: round(float(x), 2))
     df.loc[:, 'Max-Min'] = df['Máxima'] - df['Mínima']
     return df, 0.0
 
@@ -138,9 +138,9 @@ def calcular_pontos_de_trade(std, abertura):
     lst_pontos_soma = []
     lst_pontos_subtrai = []
     for i in range(1, 5):
-        lst_pontos_soma.append(round(abertura + (std * i), 2))
-        lst_pontos_subtrai.append(round(abertura - (std * i), 2))
-    colunas = [f'Devdio Padrão + {i}: {std * i}' for i in range(1, 5)]
+        lst_pontos_soma.append(abertura + (std * i))  # round(abertura + (std * i), 2)
+        lst_pontos_subtrai.append(abertura - (std * i))
+    colunas = [f'Devdio Padrão + {i}: {round(std * i, 4)}' for i in range(1, 5)]
     dados = [lst_pontos_soma, lst_pontos_subtrai]
     df_lst_pontos_trade = pd.DataFrame(dados, index=['+', '-'], columns=colunas)
     return df_lst_pontos_trade
