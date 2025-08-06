@@ -1,3 +1,4 @@
+import pytz
 from datetime import datetime, timedelta, time
 
 import streamlit as st
@@ -5,7 +6,6 @@ import pandas as pd
 import yfinance as yf
 from playwright.sync_api import sync_playwright
 import holidays
-
 
 # def arredondar_marred_0_5(numero):
 #     """Arredonda um número para o múltiplo de 0.5 mais próximo."""
@@ -152,10 +152,11 @@ def formatador_abertura_usuario(user_open: str) -> float:
 
 
 def verificador_dia_util_b3() -> bool:
+    fuso_brasilia = pytz.timezone("America/Sao_Paulo")
     feriados_sp = holidays.country_holidays('BR', years=datetime.now().year, state='SP', prov='SP', language='pt_BR')
     debug = False
     if not debug:
-        agora = datetime.now()
+        agora = datetime.now(fuso_brasilia)
     else:
         agora = datetime(2025, 8, 1, 12, 00)
     dia_semana: bool = agora.weekday() < 5
