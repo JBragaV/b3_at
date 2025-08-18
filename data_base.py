@@ -15,7 +15,7 @@ def format_num_float(valor: str) -> float:
     return float(valor_formatado)
 
 
-df = pd.read_csv("Mini Dólar Futuros Dados Históricos.csv", decimal=',')
+df = pd.read_csv("Mini Dolar Futuros Dados Historicos.csv", decimal=',')
 df = df[['Data', 'Abertura', 'Máxima', 'Mínima']]
 # df['Max-Min'] = (df['Máxima']) - df['Mínima']
 print(df[:10])
